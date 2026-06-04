@@ -1,0 +1,24 @@
+#cloud-config
+users:
+  - name: user
+    groups: sudo
+    shell: /bin/bash
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPm+ZOX+KvQwbs9dn/i+RrXT2x/B4642BpU9pZ+w99fT maksim@DESKTOP-U3S6BIN
+package_update: true
+packages:
+  - nginx
+runcmd:
+  - |
+    cat > /var/www/html/index.html <<EOF
+    <!DOCTYPE html>
+    <html>
+    <body>
+      <h1>Web server is working</h1>
+      <p>Hostname: $(hostname)</p>
+    </body>
+    </html>
+    EOF
+  - systemctl enable nginx
+  - systemctl restart nginx
