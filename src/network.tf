@@ -4,8 +4,8 @@ resource "yandex_vpc_network" "develop" {
 }
 
 #создаем подсеть zone A
-resource "yandex_vpc_subnet" "develop_a" {
-  name           = "develop-fops-${var.flow}-ru-central1-a"
+resource "yandex_vpc_subnet" "private_a" {
+  name           = "private-fops-${var.flow}-ru-central1-a"
   zone           = "ru-central1-a"
   network_id     = yandex_vpc_network.develop.id
   v4_cidr_blocks = ["10.0.1.0/24"]
@@ -13,12 +13,20 @@ resource "yandex_vpc_subnet" "develop_a" {
 }
 
 #создаем подсеть zone B
-resource "yandex_vpc_subnet" "develop_b" {
-  name           = "develop-fops-${var.flow}-ru-central1-b"
+resource "yandex_vpc_subnet" "private_b" {
+  name           = "private-fops-${var.flow}-ru-central1-b"
   zone           = "ru-central1-b"
   network_id     = yandex_vpc_network.develop.id
   v4_cidr_blocks = ["10.0.2.0/24"]
   route_table_id = yandex_vpc_route_table.rt.id
+}
+
+#создаем публичную подсеть
+resource "yandex_vpc_subnet" "public" {
+  name           = "public"
+  zone           = "ru-central1-a"
+  network_id     = yandex_vpc_network.develop.id
+  v4_cidr_blocks = ["10.0.10.0/24"]
 }
 
 #создаем NAT для выхода в интернет
@@ -42,6 +50,7 @@ resource "yandex_vpc_route_table" "rt" {
 resource "yandex_vpc_security_group" "bastion" {
   name       = "bastion-sg-${var.flow}"
   network_id = yandex_vpc_network.develop.id
+  # разрешаем входящий SSH
   ingress {
     description    = "Allow 0.0.0.0/0"
     protocol       = "TCP"
@@ -55,53 +64,148 @@ resource "yandex_vpc_security_group" "bastion" {
     from_port      = 0
     to_port        = 65535
   }
-
 }
-
-
-# resource "yandex_vpc_security_group" "LAN" {
-#   name       = "LAN-sg-${var.flow}"
-#   network_id = yandex_vpc_network.develop.id
-#   ingress {
-#     description    = "Allow 10.0.0.0/8"
-#     protocol       = "ANY"
-#     v4_cidr_blocks = ["10.0.0.0/8"]
-#     from_port      = 0
-#     to_port        = 65535
-#   }
-#   egress {
-#     description    = "Permit ANY"
-#     protocol       = "ANY"
-#     v4_cidr_blocks = ["0.0.0.0/0"]
-#     from_port      = 0
-#     to_port        = 65535
-#   }
-
-# }
 
 resource "yandex_vpc_security_group" "web_sg" {
   name       = "web-sg-${var.flow}"
   network_id = yandex_vpc_network.develop.id
-
+  # разрешаем входящий HTTP 
   ingress {
     description    = "Allow HTTP"
     protocol       = "TCP"
     port           = 80
     v4_cidr_blocks = ["0.0.0.0/0"]
   }
-
+  # разрешаем входящий SSH от серверов группы бастион
   ingress {
     description       = "SSH from Bastion"
     protocol          = "TCP"
     port              = 22
     security_group_id = yandex_vpc_security_group.bastion.id
   }
-
+  # разрешаем входящий трафик от Zabbix сервера
+  ingress {
+    description       = "Zabbix Agent"
+    protocol          = "TCP"
+    port              = 10050
+    security_group_id = yandex_vpc_security_group.zabbix_sg.id
+  }
+  # Разрешаем весь исходящий трафик
   egress {
     protocol       = "ANY"
     v4_cidr_blocks = ["0.0.0.0/0"]
     from_port      = 0
     to_port        = 65535
   }
+}
 
+resource "yandex_vpc_security_group" "zabbix_sg" {
+  name       = "zabbix-sg-${var.flow}"
+  network_id = yandex_vpc_network.develop.id
+  # разрешаем входящий HTTP 
+  ingress {
+    description    = "Allow HTTP"
+    protocol       = "TCP"
+    port           = 80
+    v4_cidr_blocks = ["0.0.0.0/0"]
+  }
+  # разрешаем входящий HTTPS
+  ingress {
+    description    = "Allow HTTPS"
+    protocol       = "TCP"
+    port           = 443
+    v4_cidr_blocks = ["0.0.0.0/0"]
+  }
+  # разрешаем входящий SSH от серверов группы бастион
+  ingress {
+    description       = "SSH from Bastion"
+    protocol          = "TCP"
+    port              = 22
+    security_group_id = yandex_vpc_security_group.bastion.id
+  }
+  # разрешаем входящий трафик от Zabbix агентов
+  ingress {
+    protocol       = "TCP"
+    port           = 10051
+    v4_cidr_blocks = ["10.0.0.0/8"]
+  }
+  # Разрешаем весь исходящий трафик
+  egress {
+    description    = "Permit ANY"
+    protocol       = "ANY"
+    v4_cidr_blocks = ["0.0.0.0/0"]
+    from_port      = 0
+    to_port        = 65535
+  }
+}
+
+resource "yandex_vpc_security_group" "elasticsearch_sg" {
+  name       = "elasticsearch-sg-${var.flow}"
+  network_id = yandex_vpc_network.develop.id
+  # разрешаем входящий SSH от серверов группы бастион
+  ingress {
+    description       = "SSH from Bastion"
+    protocol          = "TCP"
+    port              = 22
+    security_group_id = yandex_vpc_security_group.bastion.id
+  }
+  # разрешаем входящий трафик от Zabbix сервера
+  ingress {
+    description       = "Zabbix Agent"
+    protocol          = "TCP"
+    port              = 10050
+    security_group_id = yandex_vpc_security_group.zabbix_sg.id
+  }
+  # разрешаем входящий для Elasticsearch
+  ingress {
+    description    = "Elasticsearch"
+    protocol       = "TCP"
+    port           = 9200
+    v4_cidr_blocks = ["10.0.0.0/8"]
+  }
+  # Разрешаем весь исходящий трафик
+  egress {
+    protocol       = "ANY"
+    v4_cidr_blocks = ["0.0.0.0/0"]
+    from_port      = 0
+    to_port        = 65535
+  }
+}
+
+resource "yandex_vpc_security_group" "kibana_sg" {
+  name       = "kibana-sg-${var.flow}"
+  network_id = yandex_vpc_network.develop.id
+  # разрешаем входящий SSH от серверов группы бастион
+  ingress {
+    description       = "SSH from Bastion"
+    protocol          = "TCP"
+    port              = 22
+    security_group_id = yandex_vpc_security_group.bastion.id
+  }
+  # разрешаем входящий трафик от Zabbix сервера
+  ingress {
+    description       = "Zabbix Agent"
+    protocol          = "TCP"
+    port              = 10050
+    security_group_id = yandex_vpc_security_group.zabbix_sg.id
+  }
+  ingress {
+    description    = "Elasticsearch"
+    protocol       = "TCP"
+    port           = 9200
+    security_group_id = yandex_vpc_security_group.elasticsearch_sg.id
+  }
+  ingress {
+    description    = "Kibana WEB"
+    protocol       = "TCP"
+    port           = 5601
+    security_group_id = yandex_vpc_security_group.bastion.id
+  }
+  # Разрешаем весь исходящий трафик
+  egress {
+    protocol       = "ANY"
+    v4_cidr_blocks = ["0.0.0.0/0"]
+    from_port      = 0
+    to_port        = 65535
+  }
 }

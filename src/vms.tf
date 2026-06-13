@@ -33,7 +33,7 @@ resource "yandex_compute_instance" "web_a" {
   scheduling_policy { preemptible = true }
 
   network_interface {
-    subnet_id          = yandex_vpc_subnet.develop_a.id
+    subnet_id          = yandex_vpc_subnet.private_a.id
     nat                = false
     security_group_ids = [ yandex_vpc_security_group.web_sg.id]
   }
@@ -67,7 +67,7 @@ resource "yandex_compute_instance" "web_b" {
   scheduling_policy { preemptible = true }
 
   network_interface {
-    subnet_id          = yandex_vpc_subnet.develop_b.id
+    subnet_id          = yandex_vpc_subnet.private_b.id
     nat                = false
     security_group_ids = [yandex_vpc_security_group.web_sg.id]
 
@@ -86,6 +86,78 @@ resource "yandex_compute_instance" "bastion" {
     core_fraction = var.vm_res.core_fraction
   }
 
+  boot_disk { 
+    initialize_params {
+      image_id = data.yandex_compute_image.ubuntu_2404_lts.image_id
+      type     = "network-hdd"
+      size     = 10
+    }
+  }
+
+  metadata = {
+    user-data          = file("./cloud-init_bastion.yml")
+    serial-port-enable = 1
+  }
+
+  scheduling_policy { preemptible = true }
+
+  network_interface {
+    subnet_id          = yandex_vpc_subnet.public.id #зона ВМ должна совпадать с зоной subnet!!!
+    nat                = true
+    security_group_ids = [ yandex_vpc_security_group.bastion.id]
+  }
+}
+
+
+resource "yandex_compute_instance" "zabbix" {
+  name        = "zabbix" #Имя ВМ в облачной консоли
+  hostname    = "zabbix" #формирует FDQN имя хоста, без hostname будет сгенрировано случаное имя.
+  platform_id = "standard-v3"
+  zone        = "ru-central1-a" #зона ВМ должна совпадать с зоной subnet!!!
+
+  resources {
+    cores         = var.vm_res.cores
+    memory        = var.vm_res.memory
+    core_fraction = var.vm_res.core_fraction
+  }
+
+  boot_disk { 
+    initialize_params {
+      image_id = data.yandex_compute_image.ubuntu_2404_lts.image_id
+      type     = "network-hdd"
+      size     = 10
+    }
+  }
+
+  metadata = {
+    user-data = templatefile("./cloud-init_zabbix.yml", {
+      ZABBIX_CONFIG_CONTENT = indent(6, file("./zabbix.conf.php"))
+    })
+    serial-port-enable = 1
+  }
+
+  scheduling_policy { preemptible = true }
+
+  network_interface {
+    subnet_id          = yandex_vpc_subnet.private_a.id #зона ВМ должна совпадать с зоной subnet!!!
+    nat                = false
+    security_group_ids = [ yandex_vpc_security_group.zabbix_sg.id]
+  }
+}
+
+resource "yandex_compute_instance" "elasticsearch" {
+  name        = "elasticsearch" #Имя ВМ в облачной консоли
+  hostname    = "elasticsearch" #формирует FDQN имя хоста, без hostname будет сгенрировано случаное имя.
+  platform_id = "standard-v3"
+  zone        = "ru-central1-a" #зона ВМ должна совпадать с зоной subnet!!!
+
+
+  resources {
+    cores         = var.vm_res.cores
+    memory        = 2
+    core_fraction = var.vm_res.core_fraction
+  }
+
   boot_disk {
     initialize_params {
       image_id = data.yandex_compute_image.ubuntu_2404_lts.image_id
@@ -95,61 +167,77 @@ resource "yandex_compute_instance" "bastion" {
   }
 
   metadata = {
-    user-data          = file("./cloud-init.yml")
+    user-data          = file("./cloud-init_elasticsearch.yml")
     serial-port-enable = 1
   }
 
   scheduling_policy { preemptible = true }
 
   network_interface {
-    subnet_id          = yandex_vpc_subnet.develop_a.id #зона ВМ должна совпадать с зоной subnet!!!
-    nat                = true
-    security_group_ids = [ yandex_vpc_security_group.bastion.id]
+    subnet_id          = yandex_vpc_subnet.private_a.id
+    nat                = false
+    security_group_ids = [ yandex_vpc_security_group.elasticsearch_sg.id]
   }
 }
 
-# resource "yandex_compute_instance" "wrong_b" {
-#   name        = "wrong-hostname" #Имя ВМ в облачной консоли
-#   platform_id = "standard-v3"
-#   zone        = "ru-central1-b" #зона ВМ должна совпадать с зоной subnet!!!
+resource "yandex_compute_instance" "kibana" {
+  name        = "kibana" #Имя ВМ в облачной консоли
+  hostname    = "kibana" #формирует FDQN имя хоста, без hostname будет сгенрировано случаное имя.
+  platform_id = "standard-v3"
+  zone        = "ru-central1-a" #зона ВМ должна совпадать с зоной subnet!!!
+  depends_on = [
+    yandex_compute_instance.elasticsearch
+  ]
 
-#   resources {
-#     cores         = var.vm_res.cores
-#     memory        = var.vm_res.memory
-#     core_fraction = var.vm_res.core_fraction
-#   }
 
-#   boot_disk {
-#     initialize_params {
-#       image_id = data.yandex_compute_image.ubuntu_2204_lts.image_id
-#       type     = "network-hdd"
-#       size     = 10
-#     }
-#   }
+  resources {
+    cores         = var.vm_res.cores
+    memory        = var.vm_res.memory
+    core_fraction = var.vm_res.core_fraction
+  }
 
-#   metadata = {
-#     user-data          = file("./cloud-init.yml")
-#     serial-port-enable = 1
-#   }
+  boot_disk {
+    initialize_params {
+      image_id = data.yandex_compute_image.ubuntu_2404_lts.image_id
+      type     = "network-hdd"
+      size     = 10
+    }
+  }
 
-#   scheduling_policy { preemptible = true }
+  metadata = {
+    user-data          = file("./cloud-init_kibana.yml")
+    serial-port-enable = 1
+  }
 
-#   network_interface {
-#     subnet_id          = yandex_vpc_subnet.develop_b.id
-#     nat                = false
-#     security_group_ids = [yandex_vpc_security_group.LAN.id, yandex_vpc_security_group.web_sg.id]
+  scheduling_policy { preemptible = true }
 
-#   }
-# }
+  network_interface {
+    subnet_id          = yandex_vpc_subnet.private_a.id
+    nat                = false
+    security_group_ids = [ yandex_vpc_security_group.kibana_sg.id]
+  }
 
+}
+
+# [loadbalancer]
+#   # ${yandex_alb_load_balancer.web.listener[0].endpoint[0].address[0].external_ipv4_address[0].address}
 
 resource "local_file" "inventory" {
   content  = <<-XYZ
-  [loadbalancer]
-  ${yandex_alb_load_balancer.web.listener[0].endpoint[0].address[0].external_ipv4_address[0].address}
-
+  
   [bastion]
   ${yandex_compute_instance.bastion.network_interface.0.nat_ip_address}
+
+  [zabbix]
+  # ${yandex_compute_instance.zabbix.network_interface.0.nat_ip_address}
+  ${yandex_compute_instance.zabbix.network_interface.0.ip_address}
+
+  [elasticsearch]
+  ${yandex_compute_instance.elasticsearch.network_interface.0.ip_address}
+
+  [kibana]
+  # ${yandex_compute_instance.kibana.network_interface.0.nat_ip_address}
+  ${yandex_compute_instance.kibana.network_interface.0.ip_address}
 
   [webservers]
   ${yandex_compute_instance.web_a.network_interface.0.ip_address}
