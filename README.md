@@ -150,6 +150,8 @@ Cоздайте ВМ, разверните на ней Elasticsearch. Устан
 
   ![Dashboard](img/img2.png)
 
+- Чтоб заработал nginx Agent на серевере нужно изменить макросы `{$NGINX.STUB_STATUS.HOST} = localhost` , `{$NGINX.STUB_STATUS.PATH} = nginx_status`  у хостов web-a и web-b. В `cloud-init_web.yml` прописывается создание файла конфигурации /`etc/nginx/conf.d/status.conf` разрешающего nginx отображать свой статус работы.
+
 ## Логи
 
 - Установка Elasticsearch, filebeat, Kibana проходит в блоке `runcmd: `соответствующего файла `cloud-init_*.yml`
