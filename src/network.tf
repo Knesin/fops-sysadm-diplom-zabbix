@@ -46,7 +46,7 @@ resource "yandex_vpc_route_table" "rt" {
   }
 }
 
-#создаем группы безопасности(firewall)
+#создаем группу безопасности (firewall)
 resource "yandex_vpc_security_group" "bastion" {
   name       = "bastion-sg-${var.flow}"
   network_id = yandex_vpc_network.develop.id
@@ -57,6 +57,7 @@ resource "yandex_vpc_security_group" "bastion" {
     v4_cidr_blocks = ["0.0.0.0/0"]
     port           = 22
   }
+  # разрешаем любой исходящий трафик
   egress {
     description    = "Permit ANY"
     protocol       = "ANY"
@@ -66,6 +67,7 @@ resource "yandex_vpc_security_group" "bastion" {
   }
 }
 
+# Группа безопасности WEB серверов
 resource "yandex_vpc_security_group" "web_sg" {
   name       = "web-sg-${var.flow}"
   network_id = yandex_vpc_network.develop.id
@@ -107,13 +109,6 @@ resource "yandex_vpc_security_group" "zabbix_sg" {
     description    = "Allow HTTP"
     protocol       = "TCP"
     port           = 80
-    v4_cidr_blocks = ["0.0.0.0/0"]
-  }
-  # разрешаем входящий HTTPS
-  ingress {
-    description    = "Allow HTTPS"
-    protocol       = "TCP"
-    port           = 443
     v4_cidr_blocks = ["0.0.0.0/0"]
   }
   # разрешаем входящий SSH от серверов группы бастион
@@ -189,17 +184,19 @@ resource "yandex_vpc_security_group" "kibana_sg" {
     port              = 10050
     security_group_id = yandex_vpc_security_group.zabbix_sg.id
   }
+  # разрешаем входящий трафик Elasticsearch
   ingress {
     description    = "Elasticsearch"
     protocol       = "TCP"
     port           = 9200
     security_group_id = yandex_vpc_security_group.elasticsearch_sg.id
   }
+  # разрешаем входящий трафик для WEB сервера Kibana
   ingress {
     description    = "Kibana WEB"
     protocol       = "TCP"
     port           = 5601
-    security_group_id = yandex_vpc_security_group.bastion.id
+    v4_cidr_blocks = ["0.0.0.0/0"]
   }
   # Разрешаем весь исходящий трафик
   egress {

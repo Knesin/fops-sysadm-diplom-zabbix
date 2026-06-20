@@ -1,0 +1,42 @@
+#cloud-config
+users:
+  - name: user
+    groups: sudo
+    shell: /bin/bash
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPm+ZOX+KvQwbs9dn/i+RrXT2x/B4642BpU9pZ+w99fT maksim@DESKTOP-U3S6BIN
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICsrrQZE2cs8uCZ4oUZcoErmtoLjiyY3nU3Hk0QlArQK maksim@DESKTOP-R5DV9UM
+write_files:
+  - path: /tmp/kibana_backup.ndjson
+    permissions: '0644'
+    owner: root:root
+    content: |
+      {"attributes":{"buildNum":47815,"defaultIndex":"1db078b0-6821-11f1-800c-cf4e46ff80fa"},"coreMigrationVersion":"7.17.29","id":"7.17.29","migrationVersion":{"config":"7.13.0"},"references":[],"type":"config","updated_at":"2026-06-14T18:45:23.658Z","version":"WzM2MCwzXQ=="}
+      {"attributes":{"fieldAttrs":"{}","fields":"[]","runtimeFieldMap":"{}","timeFieldName":"@timestamp","title":"filebeat-7.17.29-*","typeMeta":"{}"},"coreMigrationVersion":"7.17.29","id":"1db078b0-6821-11f1-800c-cf4e46ff80fa","migrationVersion":{"index-pattern":"7.11.0"},"references":[],"type":"index-pattern","updated_at":"2026-06-14T18:44:46.651Z","version":"WzM1NiwzXQ=="}
+      {"excludedObjects":[],"excludedObjectsCount":0,"exportedCount":2,"missingRefCount":0,"missingReferences":[]}
+runcmd:
+# Install Zabbix Server and Agent2
+  - wget https://repo.zabbix.com/zabbix/7.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_latest_7.0+ubuntu24.04_all.deb
+  - dpkg -i zabbix-release_latest_7.0+ubuntu24.04_all.deb
+  - apt update
+  - apt install -y zabbix-agent2
+  - sed -i 's/^Server=.*/Server=zabbix/' /etc/zabbix/zabbix_agent2.conf
+  - sed -i 's/^ServerActive=.*/ServerActive=zabbix/' /etc/zabbix/zabbix_agent2.conf
+  - echo "HostMetadata=linux" >> /etc/zabbix/zabbix_agent2.conf
+  - systemctl restart zabbix-agent2
+  - systemctl enable zabbix-agent2
+# Install Kibana
+  - wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | apt-key add -
+  - echo "deb [trusted=yes] https://mirror.yandex.ru/mirrors/elastic/7/ stable main" | tee /etc/apt/sources.list.d/elastic-7.x.list
+  - apt update 
+  - apt install -y kibana
+  - "echo 'server.host: \"0.0.0.0\"' >> /etc/kibana/kibana.yml"
+  - "echo 'elasticsearch.hosts: [\"http://elasticsearch:9200\"]' >> /etc/kibana/kibana.yml"
+  - systemctl daemon-reload
+  - systemctl enable kibana.service
+  - systemctl start kibana.service
+# Проверка что Kibana поднялась и имитация нажатия кнопки восстановления конфига
+  - until curl -s http://localhost:5601/api/status | grep -q '"level":"green"'; do sleep 5; done
+  - 'curl -X POST "http://localhost:5601/api/saved_objects/_import?createNewCopies=true" -H "kbn-xsrf: true" --form file=@/tmp/kibana_backup.ndjson'
+  

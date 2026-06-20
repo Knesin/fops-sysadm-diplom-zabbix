@@ -26,7 +26,7 @@ resource "yandex_compute_instance" "web_a" {
   }
 
   metadata = {
-    user-data          = file("./cloud-init_web.yml")
+    user-data          = file("./vms_init/cloud-init_web.yml")
     serial-port-enable = 1
   }
 
@@ -60,7 +60,7 @@ resource "yandex_compute_instance" "web_b" {
   }
 
   metadata = {
-    user-data          = file("./cloud-init_web.yml")
+    user-data          = file("./vms_init/cloud-init_web.yml")
     serial-port-enable = 1
   }
 
@@ -95,7 +95,7 @@ resource "yandex_compute_instance" "bastion" {
   }
 
   metadata = {
-    user-data          = file("./cloud-init_bastion.yml")
+    user-data          = file("./vms_init/cloud-init_bastion.yml")
     serial-port-enable = 1
   }
 
@@ -107,7 +107,6 @@ resource "yandex_compute_instance" "bastion" {
     security_group_ids = [ yandex_vpc_security_group.bastion.id]
   }
 }
-
 
 resource "yandex_compute_instance" "zabbix" {
   name        = "zabbix" #Имя ВМ в облачной консоли
@@ -130,8 +129,9 @@ resource "yandex_compute_instance" "zabbix" {
   }
 
   metadata = {
-    user-data = templatefile("./cloud-init_zabbix.yml", {
-      ZABBIX_CONFIG_CONTENT = indent(6, file("./zabbix.conf.php"))
+    user-data = templatefile("./vms_init/cloud-init_zabbix.yml", {
+      ZABBIX_CONFIG_CONTENT = indent(6, file("./vms_init/zabbix.conf.php"))
+       DUMP_URL = "https://storage.yandexcloud.net/${yandex_storage_bucket.zabbix_backup.bucket}/zabbix.dump"
     })
     serial-port-enable = 1
   }
@@ -139,8 +139,8 @@ resource "yandex_compute_instance" "zabbix" {
   scheduling_policy { preemptible = true }
 
   network_interface {
-    subnet_id          = yandex_vpc_subnet.private_a.id #зона ВМ должна совпадать с зоной subnet!!!
-    nat                = false
+    subnet_id          = yandex_vpc_subnet.public.id #зона ВМ должна совпадать с зоной subnet!!!
+    nat                = true
     security_group_ids = [ yandex_vpc_security_group.zabbix_sg.id]
   }
 }
@@ -167,7 +167,7 @@ resource "yandex_compute_instance" "elasticsearch" {
   }
 
   metadata = {
-    user-data          = file("./cloud-init_elasticsearch.yml")
+    user-data          = file("./vms_init/cloud-init_elasticsearch.yml")
     serial-port-enable = 1
   }
 
@@ -205,25 +205,25 @@ resource "yandex_compute_instance" "kibana" {
   }
 
   metadata = {
-    user-data          = file("./cloud-init_kibana.yml")
+    user-data          = file("./vms_init/cloud-init_kibana.yml")
     serial-port-enable = 1
   }
 
   scheduling_policy { preemptible = true }
 
   network_interface {
-    subnet_id          = yandex_vpc_subnet.private_a.id
-    nat                = false
+    subnet_id          = yandex_vpc_subnet.public.id
+    nat                = true
     security_group_ids = [ yandex_vpc_security_group.kibana_sg.id]
   }
 
 }
 
-# [loadbalancer]
-#   # ${yandex_alb_load_balancer.web.listener[0].endpoint[0].address[0].external_ipv4_address[0].address}
 
 resource "local_file" "inventory" {
   content  = <<-XYZ
+  [loadbalancer]
+  # ${yandex_alb_load_balancer.web.listener[0].endpoint[0].address[0].external_ipv4_address[0].address}
   
   [bastion]
   ${yandex_compute_instance.bastion.network_interface.0.nat_ip_address}
