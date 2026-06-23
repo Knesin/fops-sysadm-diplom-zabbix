@@ -26,7 +26,6 @@ resource "yandex_alb_backend_group" "web" {
     healthcheck {
       timeout  = "3s"
       interval = "9s"
-
       http_healthcheck {
         path = "/"
       }
@@ -44,7 +43,6 @@ resource "yandex_alb_virtual_host" "web" {
 
   route {
     name = "root"
-
     http_route {
       http_route_action {
         backend_group_id = yandex_alb_backend_group.web.id
@@ -56,6 +54,7 @@ resource "yandex_alb_virtual_host" "web" {
 resource "yandex_alb_load_balancer" "web" {
   name       = "web-alb"
   network_id = yandex_vpc_network.develop.id
+  security_group_ids = [yandex_vpc_security_group.alb_sg.id]
 
   allocation_policy {
     location {
@@ -71,7 +70,6 @@ resource "yandex_alb_load_balancer" "web" {
       address {
         external_ipv4_address {}
       }
-
       ports = [80]
     }
 

@@ -71,12 +71,19 @@ resource "yandex_vpc_security_group" "bastion" {
 resource "yandex_vpc_security_group" "web_sg" {
   name       = "web-sg-${var.flow}"
   network_id = yandex_vpc_network.develop.id
-  # разрешаем входящий HTTP 
+  # разрешаем входящий HTTP от балансировщика
   ingress {
-    description    = "Allow HTTP"
-    protocol       = "TCP"
-    port           = 80
-    v4_cidr_blocks = ["0.0.0.0/0"]
+    description       = "Allow HTTP"
+    protocol          = "TCP"
+    port              = 80
+    security_group_id = yandex_vpc_security_group.alb_sg.id
+  }
+  # разрешаем входящий HTTP для проверки доступности
+  ingress {
+    description       = "ALB health checks"
+    protocol          = "TCP"
+    port              = 80
+    predefined_target = "loadbalancer_healthchecks"
   }
   # разрешаем входящий SSH от серверов группы бастион
   ingress {
@@ -197,6 +204,25 @@ resource "yandex_vpc_security_group" "kibana_sg" {
     protocol       = "TCP"
     port           = 5601
     v4_cidr_blocks = ["0.0.0.0/0"]
+  }
+  # Разрешаем весь исходящий трафик
+  egress {
+    protocol       = "ANY"
+    v4_cidr_blocks = ["0.0.0.0/0"]
+    from_port      = 0
+    to_port        = 65535
+  }
+}
+
+resource "yandex_vpc_security_group" "alb_sg" {
+  name       = "alb-sg-${var.flow}"
+  network_id = yandex_vpc_network.develop.id
+  # разрешаем входящий HTTP
+  ingress {
+    description       = "HTTP from Internet"
+    protocol          = "TCP"
+    port              = 80
+    v4_cidr_blocks    = ["0.0.0.0/0"]
   }
   # Разрешаем весь исходящий трафик
   egress {
