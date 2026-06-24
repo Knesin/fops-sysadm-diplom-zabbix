@@ -5,76 +5,10 @@ users:
     shell: /bin/bash
     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
     ssh_authorized_keys:
-      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPm+ZOX+KvQwbs9dn/i+RrXT2x/B4642BpU9pZ+w99fT maksim@DESKTOP-U3S6BIN
-      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICsrrQZE2cs8uCZ4oUZcoErmtoLjiyY3nU3Hk0QlArQK maksim@DESKTOP-R5DV9UM
+${ssh_keys}
+
 package_update: true
 packages:
   - nginx
-write_files:
-  - path: /etc/filebeat/filebeat.yml
-    permissions: '0600'
-    owner: root:root
-    content: |
-      filebeat.inputs:
-      - type: log
-        enabled: true
-        paths:
-          - /var/log/nginx/access.log
-          - /var/log/nginx/error.log
-        processors:
-          - drop_fields:
-              fields: ["beat", "input_type","prospector", "input", "host", "agent","ecs"]
-      output.elasticsearch:
-        hosts: ["elasticsearch:9200"]
-  # Конфигурация Nginx Status для Zabbix Agent 2 ---
-  - path: /etc/nginx/conf.d/status.conf
-    permissions: '0644'
-    owner: root:root
-    content: |
-      server {
-          listen 127.0.0.1:80;
-          server_name localhost;
-
-          location /nginx_status {
-              stub_status on;
-              access_log off;
-              allow 127.0.0.1;
-              deny all;
-          }
-      }
-  - path: /etc/zabbix/zabbix_agent2.d/nginx_custom.conf
-    permissions: '0644'
-    owner: root:root
-    content: |
-      UserParameter=nginx.get_status,curl -s http://127.0.0.1/nginx_status
 runcmd:
-# Change index page
-  - |
-    cat > /var/www/html/index.html <<EOF
-    <!DOCTYPE html>
-    <html>
-    <body>
-      <h1>Web server is working</h1>
-      <p>Hostname: $(hostname)</p>
-    </body>
-    </html>
-    EOF
   - systemctl enable nginx
-  - systemctl restart nginx
-# Install Zabbix Agent 2
-  - wget https://repo.zabbix.com/zabbix/7.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_latest_7.0+ubuntu24.04_all.deb
-  - dpkg -i zabbix-release_latest_7.0+ubuntu24.04_all.deb
-  - apt update
-  - apt install -y zabbix-agent2
-  - sed -i 's/^Server=.*/Server=zabbix/' /etc/zabbix/zabbix_agent2.conf
-  - sed -i 's/^ServerActive=.*/ServerActive=zabbix/' /etc/zabbix/zabbix_agent2.conf
-  - echo "HostMetadata=linux" >> /etc/zabbix/zabbix_agent2.conf
-  - systemctl restart zabbix-agent2
-  - systemctl enable zabbix-agent2
-# Install filebeat 
-  - wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | apt-key add -
-  - echo "deb [trusted=yes] https://mirror.yandex.ru/mirrors/elastic/7/ stable main" | tee /etc/apt/sources.list.d/elastic-7.x.list
-  - apt update 
-  - apt install -y filebeat
-  - systemctl enable filebeat.service
-  - systemctl start filebeat.service

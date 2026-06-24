@@ -1,5 +1,5 @@
 resource "yandex_compute_snapshot_schedule" "daily_backup" {
-  name = "daily-snapshots"
+  name = "daily-snapshots-fops-${var.flow}"
 
   schedule_policy {
     expression = "0 1 * * *"

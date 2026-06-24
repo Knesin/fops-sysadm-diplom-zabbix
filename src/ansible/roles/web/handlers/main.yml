@@ -1,0 +1,16 @@
+---
+- name: restart nginx
+  service:
+    name: nginx
+    state: restarted
+
+- name: restart filebeat
+  service:
+    name: filebeat
+    state: restarted
+    enabled: yes
+
+- name: restart zabbix-agent2
+  service:
+    name: zabbix-agent2
+    state: restarted

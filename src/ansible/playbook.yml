@@ -1,0 +1,34 @@
+- name: Apply common configuration to ALL servers
+  hosts: all:!zabbix
+  become: true
+
+  roles:
+    - zabbix-agent2
+
+- name: Configure Elasticsearch
+  hosts: elasticsearch
+  become: true
+
+  roles:
+    - elasticsearch
+
+- name: Configure Web Servers
+  hosts: webservers
+  become: true
+
+  roles:
+    - web
+
+- name: Configure Kibana Servers
+  hosts: kibana
+  become: true
+
+  roles:
+    - kibana
+
+- name: Configure Zabbix Servers
+  hosts: zabbix
+  become: true
+
+  roles:
+    - zabbix-server

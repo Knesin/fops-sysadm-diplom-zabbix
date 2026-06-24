@@ -26,8 +26,11 @@ resource "yandex_compute_instance" "web_a" {
   }
 
   metadata = {
-    user-data          = file("./vms_init/cloud-init_web.yml")
-    serial-port-enable = 1
+    user-data = templatefile("vms_init/cloud-init_web.yml", {
+      ssh_keys = join("\n", [
+        for k in var.ssh_public_keys : "      - ${k}"
+      ])
+    })
   }
 
   scheduling_policy { preemptible = true }
@@ -60,8 +63,11 @@ resource "yandex_compute_instance" "web_b" {
   }
 
   metadata = {
-    user-data          = file("./vms_init/cloud-init_web.yml")
-    serial-port-enable = 1
+    user-data = templatefile("vms_init/cloud-init_web.yml", {
+      ssh_keys = join("\n", [
+        for k in var.ssh_public_keys : "      - ${k}"
+      ])
+    })
   }
 
   scheduling_policy { preemptible = true }
@@ -95,8 +101,11 @@ resource "yandex_compute_instance" "bastion" {
   }
 
   metadata = {
-    user-data          = file("./vms_init/cloud-init_bastion.yml")
-    serial-port-enable = 1
+    user-data = templatefile("vms_init/cloud-init_web.yml", {
+      ssh_keys = join("\n", [
+        for k in var.ssh_public_keys : "      - ${k}"
+      ])
+    })
   }
 
   scheduling_policy { preemptible = true }
@@ -129,11 +138,11 @@ resource "yandex_compute_instance" "zabbix" {
   }
 
   metadata = {
-    user-data = templatefile("./vms_init/cloud-init_zabbix.yml", {
-      ZABBIX_CONFIG_CONTENT = indent(6, file("./vms_init/zabbix.conf.php"))
-       DUMP_URL = "https://storage.yandexcloud.net/${yandex_storage_bucket.zabbix_backup.bucket}/zabbix.dump"
+    user-data = templatefile("vms_init/cloud-init_web.yml", {
+      ssh_keys = join("\n", [
+        for k in var.ssh_public_keys : "      - ${k}"
+      ])
     })
-    serial-port-enable = 1
   }
 
   scheduling_policy { preemptible = true }
@@ -167,8 +176,11 @@ resource "yandex_compute_instance" "elasticsearch" {
   }
 
   metadata = {
-    user-data          = file("./vms_init/cloud-init_elasticsearch.yml")
-    serial-port-enable = 1
+    user-data = templatefile("vms_init/cloud-init_web.yml", {
+      ssh_keys = join("\n", [
+        for k in var.ssh_public_keys : "      - ${k}"
+      ])
+    })
   }
 
   scheduling_policy { preemptible = true }
@@ -217,35 +229,6 @@ resource "yandex_compute_instance" "kibana" {
     security_group_ids = [ yandex_vpc_security_group.kibana_sg.id]
   }
 
-}
-
-
-resource "local_file" "inventory" {
-  content  = <<-XYZ
-  [loadbalancer]
-  # ${yandex_alb_load_balancer.web.listener[0].endpoint[0].address[0].external_ipv4_address[0].address}
-  
-  [bastion]
-  ${yandex_compute_instance.bastion.network_interface.0.nat_ip_address}
-
-  [zabbix]
-  # ${yandex_compute_instance.zabbix.network_interface.0.nat_ip_address}
-  ${yandex_compute_instance.zabbix.network_interface.0.ip_address}
-
-  [elasticsearch]
-  ${yandex_compute_instance.elasticsearch.network_interface.0.ip_address}
-
-  [kibana]
-  # ${yandex_compute_instance.kibana.network_interface.0.nat_ip_address}
-  ${yandex_compute_instance.kibana.network_interface.0.ip_address}
-
-  [webservers]
-  ${yandex_compute_instance.web_a.network_interface.0.ip_address}
-  ${yandex_compute_instance.web_b.network_interface.0.ip_address}
-  [webservers:vars]
-  ansible_ssh_common_args='-o ProxyCommand="ssh -p 22 -W %h:%p -q user@${yandex_compute_instance.bastion.network_interface.0.nat_ip_address}"'
-  XYZ
-  filename = "./hosts.ini"
 }
 
 

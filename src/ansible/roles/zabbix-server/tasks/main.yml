@@ -1,0 +1,77 @@
+---
+- name: Download Zabbix repository release package
+  apt:
+    deb: https://repo.zabbix.com/zabbix/7.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_latest_7.0+ubuntu24.04_all.deb
+
+- name: Install Zabbix Server and Frontend packages
+  apt:
+    name:
+      - zabbix-server-pgsql
+      - zabbix-frontend-php
+      - php8.3-pgsql
+      - zabbix-apache-conf
+      - zabbix-sql-scripts
+      - zabbix-agent2
+    state: present
+    update_cache: yes
+
+- name: Copy Zabbix conf
+  copy:
+    src: zabbix.conf.php
+    dest: /etc/zabbix/web/zabbix.conf.php
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart apache2
+
+- name: Copy Zabbix dump
+  copy:
+    src: zabbix.dump
+    dest: /tmp/zabbix.pgc
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Create database user zabbix
+  postgresql_user:
+    name: zabbix
+    password: "123456789"
+    state: present
+  become: true
+  become_user: postgres
+
+- name: Create database zabbix
+  postgresql_db:
+    name: zabbix
+    owner: zabbix
+    state: present
+  become: true
+  become_user: postgres
+
+- name: Check if Zabbix database is already populated
+  postgresql_query:
+    db: zabbix
+    query: "SELECT to_regclass('public.users');"
+  become: true
+  become_user: postgres
+  register: zabbix_db_check
+
+- name: Restore Zabbix database dump
+  postgresql_db:
+    name: zabbix
+    state: restore
+    target: /tmp/zabbix.pgc
+    target_opts: "--format=custom --clean --if-exists"
+  become: true
+  become_user: postgres
+  when: zabbix_db_check.query_result[0]['to_regclass'] is none
+  notify: restart zabbix-server
+
+- name: Copy Zabbix server conf
+  copy:
+    src: zabbix_server.conf
+    dest: /etc/zabbix/zabbix_server.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart zabbix-server

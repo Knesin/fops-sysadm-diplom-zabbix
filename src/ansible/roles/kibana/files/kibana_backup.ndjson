@@ -1,0 +1,3 @@
+{"attributes":{"buildNum":47815,"defaultIndex":"1db078b0-6821-11f1-800c-cf4e46ff80fa"},"coreMigrationVersion":"7.17.29","id":"7.17.29","migrationVersion":{"config":"7.13.0"},"references":[],"type":"config","updated_at":"2026-06-14T18:45:23.658Z","version":"WzM2MCwzXQ=="}
+{"attributes":{"fieldAttrs":"{}","fields":"[]","runtimeFieldMap":"{}","timeFieldName":"@timestamp","title":"filebeat-7.17.29-*","typeMeta":"{}"},"coreMigrationVersion":"7.17.29","id":"1db078b0-6821-11f1-800c-cf4e46ff80fa","migrationVersion":{"index-pattern":"7.11.0"},"references":[],"type":"index-pattern","updated_at":"2026-06-14T18:44:46.651Z","version":"WzM1NiwzXQ=="}
+{"excludedObjects":[],"excludedObjectsCount":0,"exportedCount":2,"missingRefCount":0,"missingReferences":[]}
