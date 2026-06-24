@@ -5,12 +5,12 @@ users:
     shell: /bin/bash
     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
     ssh_authorized_keys:
-      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPm+ZOX+KvQwbs9dn/i+RrXT2x/B4642BpU9pZ+w99fT maksim@DESKTOP-U3S6BIN
-      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICsrrQZE2cs8uCZ4oUZcoErmtoLjiyY3nU3Hk0QlArQK maksim@DESKTOP-R5DV9UM
+${ssh_keys}
+
 package_update: true
 packages:
   - postgresql
   - python3-psycopg2
 runcmd:
-  - systemctl restart postgresql
+  - systemctl start postgresql
   - systemctl enable  postgresql

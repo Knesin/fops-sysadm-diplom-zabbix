@@ -5,18 +5,9 @@ users:
     shell: /bin/bash
     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
     ssh_authorized_keys:
-      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPm+ZOX+KvQwbs9dn/i+RrXT2x/B4642BpU9pZ+w99fT maksim@DESKTOP-U3S6BIN
-      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICsrrQZE2cs8uCZ4oUZcoErmtoLjiyY3nU3Hk0QlArQK maksim@DESKTOP-R5DV9UM
+${ssh_keys}
+
 package_update: true
 packages:
   - gnupg 
   - apt-transport-https
-# runcmd:
-# Install elasticsearch
-  # - apt install -y gnupg apt-transport-https
-  # - wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | apt-key add -
-  # - echo "deb [trusted=yes] https://mirror.yandex.ru/mirrors/elastic/7/ stable main" | tee /etc/apt/sources.list.d/elastic-7.x.list
-  # - apt update 
-  # - apt install -y elasticsearch
-  # - systemctl daemon-reload
-  # - systemctl enable elasticsearch.service

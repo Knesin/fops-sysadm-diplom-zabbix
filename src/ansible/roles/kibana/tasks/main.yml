@@ -23,6 +23,12 @@
     state: present
     update_cache: yes
 
+- name: Start and enable Kibana service
+  service:
+    name: kibana
+    state: started 
+    enabled: yes
+
 - name: Copy kibana service config
   copy:
     src: kibana.yml

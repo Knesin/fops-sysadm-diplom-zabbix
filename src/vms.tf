@@ -101,7 +101,7 @@ resource "yandex_compute_instance" "bastion" {
   }
 
   metadata = {
-    user-data = templatefile("vms_init/cloud-init_web.yml", {
+    user-data = templatefile("vms_init/cloud-init_bastion.yml", {
       ssh_keys = join("\n", [
         for k in var.ssh_public_keys : "      - ${k}"
       ])
@@ -138,7 +138,7 @@ resource "yandex_compute_instance" "zabbix" {
   }
 
   metadata = {
-    user-data = templatefile("vms_init/cloud-init_web.yml", {
+    user-data = templatefile("vms_init/cloud-init_zabbix.yml", {
       ssh_keys = join("\n", [
         for k in var.ssh_public_keys : "      - ${k}"
       ])
@@ -176,7 +176,7 @@ resource "yandex_compute_instance" "elasticsearch" {
   }
 
   metadata = {
-    user-data = templatefile("vms_init/cloud-init_web.yml", {
+    user-data = templatefile("vms_init/cloud-init_elasticsearch.yml", {
       ssh_keys = join("\n", [
         for k in var.ssh_public_keys : "      - ${k}"
       ])
@@ -217,8 +217,11 @@ resource "yandex_compute_instance" "kibana" {
   }
 
   metadata = {
-    user-data          = file("./vms_init/cloud-init_kibana.yml")
-    serial-port-enable = 1
+    user-data = templatefile("vms_init/cloud-init_kibana.yml", {
+      ssh_keys = join("\n", [
+        for k in var.ssh_public_keys : "      - ${k}"
+      ])
+    })
   }
 
   scheduling_policy { preemptible = true }
