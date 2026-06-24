@@ -78,13 +78,6 @@ resource "yandex_vpc_security_group" "web_sg" {
     port              = 80
     security_group_id = yandex_vpc_security_group.alb_sg.id
   }
-  # разрешаем входящий HTTP для проверки доступности
-  ingress {
-    description       = "ALB health checks"
-    protocol          = "TCP"
-    port              = 80
-    predefined_target = "loadbalancer_healthchecks"
-  }
   # разрешаем входящий SSH от серверов группы бастион
   ingress {
     description       = "SSH from Bastion"
